@@ -26,7 +26,7 @@ contract PropertyToken is ERC1155, Ownable {
     }
 
     function uri(uint256 assetId) public pure override returns (string memory) {
-        return string(abi.encodePacked("https://coast-v2.vercel.app/api/token/", _toString(assetId)));
+        return string(abi.encodePacked("https://coastv2.onrender.com/api/token/", _toString(assetId)));
     }
 
     function _toString(uint256 value) internal pure returns (string memory) {
