@@ -98,11 +98,11 @@ contract FundingVault is Ownable, IERC1155Receiver {
         emit TokensPurchased(assetId, msg.sender, tokenAmount, cost);
     }
 
-    // Admin: finalize after deadline
+    // Admin: finalize after deadline OR when fully funded
     function finalizeCampaign(uint256 assetId) external onlyOwner {
         Campaign storage c = campaigns[assetId];
         require(c.deadline > 0, "Campaign does not exist");
-        require(block.timestamp >= c.deadline, "Deadline not passed yet");
+        require(block.timestamp >= c.deadline || c.currentAmount >= c.targetAmount, "Deadline not passed and target not reached");
         require(!c.finalized, "Already finalized");
 
         c.finalized = true;

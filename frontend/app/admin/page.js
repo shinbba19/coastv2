@@ -278,9 +278,11 @@ export default function AdminPage() {
     const totalSupply = hasCampaign ? Number(c.totalSupply) : 0;
     const progress = target > 0 ? Math.min(100, (raised / target) * 100) : 0;
     const deadlinePassed = hasCampaign && Number(c.deadline) * 1000 < Date.now();
+    const fullyFunded = hasCampaign && soldTokens >= totalSupply && totalSupply > 0;
     const status = !hasCampaign ? "No Campaign"
       : c.finalized && c.funded ? "Funded"
       : c.finalized && !c.funded ? "Failed"
+      : fullyFunded ? "Fully Funded"
       : deadlinePassed ? "Awaiting Finalize"
       : "Active";
     return { asset, raised, target, soldTokens, totalSupply, progress, status, hasCampaign, fundsReleased: hasCampaign && c.fundsReleased, dividendsTotal: dividends[asset.id] || 0 };
@@ -403,6 +405,7 @@ export default function AdminPage() {
                           row.status === "Funded" ? "bg-green-100 text-green-700" :
                           row.status === "Failed" ? "bg-red-100 text-red-700" :
                           row.status === "Active" ? "bg-blue-100 text-blue-700" :
+                          row.status === "Fully Funded" ? "bg-amber-100 text-amber-700" :
                           row.status === "Awaiting Finalize" ? "bg-yellow-100 text-yellow-700" :
                           "bg-gray-100 text-gray-500"
                         }`}>
@@ -589,9 +592,10 @@ export default function AdminPage() {
                     <span className={`text-xs px-2 py-1 rounded-full ${
                       c.finalized && c.funded ? "bg-green-100 text-green-700" :
                       c.finalized && !c.funded ? "bg-red-100 text-red-700" :
+                      soldTokens >= Number(c.totalSupply) ? "bg-amber-100 text-amber-700" :
                       deadlinePassed ? "bg-yellow-100 text-yellow-700" : "bg-blue-100 text-blue-700"
                     }`}>
-                      {c.finalized ? (c.funded ? "Funded" : "Failed") : deadlinePassed ? "Deadline Passed" : "Active"}
+                      {c.finalized ? (c.funded ? "Funded" : "Failed") : soldTokens >= Number(c.totalSupply) ? "Fully Funded" : deadlinePassed ? "Deadline Passed" : "Active"}
                     </span>
                   </div>
                   <div className="mb-1 flex justify-between text-xs text-gray-500">
@@ -602,7 +606,7 @@ export default function AdminPage() {
                     <div className="bg-blue-500 h-2 rounded-full" style={{ width: `${progress}%` }} />
                   </div>
                   <div className="flex gap-3 flex-wrap">
-                    {!c.finalized && deadlinePassed && (
+                    {!c.finalized && (deadlinePassed || soldTokens >= Number(c.totalSupply)) && (
                       <button onClick={() => finalize(asset.id)}
                         className="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg text-sm font-semibold transition">
                         Finalize Campaign
