@@ -106,12 +106,12 @@ export default function MarketplacePage() {
                   );
                 })()}
                 <TokenProgress campaign={c} />
-                <Link
+                <a
                   href={`/asset/${asset.id}`}
                   className="mt-4 block w-full text-center bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg text-sm font-semibold transition"
                 >
                   Buy Tokens
-                </Link>
+                </a>
               </div>
             </div>
           );
