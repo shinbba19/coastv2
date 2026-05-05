@@ -214,10 +214,16 @@ export default function PortfolioPage() {
                         </div>
                       </>
                     ) : (
-                      <div className="col-span-2">
-                        <p className="text-gray-400">Source</p>
-                        <p className="font-semibold text-purple-700">Secondary Market</p>
-                      </div>
+                      <>
+                        <div>
+                          <p className="text-gray-400">Source</p>
+                          <p className="font-semibold text-purple-700">Secondary Market</p>
+                        </div>
+                        <div>
+                          <p className="text-gray-400">Est. Value</p>
+                          <p className="font-semibold">{(heldBalance * tokenPrice).toLocaleString()} mUSDT</p>
+                        </div>
+                      </>
                     )}
                     <div>
                       <p className="text-gray-400">Tokens in Wallet</p>
