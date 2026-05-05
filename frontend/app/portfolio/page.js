@@ -173,6 +173,35 @@ export default function PortfolioPage() {
         </div>
       ) : (
         <div className="space-y-4">
+          {(() => {
+            const totalPaid = positions.reduce((sum, { campaign, purchased }) => {
+              const tokenPrice = Number(campaign.tokenPrice) / 1e6;
+              return sum + Number(purchased) * tokenPrice;
+            }, 0);
+            const totalEstValue = positions.reduce((sum, { campaign, tokenBalance }) => {
+              const tokenPrice = Number(campaign.tokenPrice) / 1e6;
+              return sum + Number(tokenBalance) * tokenPrice;
+            }, 0);
+            const gain = totalEstValue - totalPaid;
+            return (
+              <div className="bg-white rounded-2xl border border-gray-100 p-5 grid grid-cols-3 gap-4 text-sm">
+                <div>
+                  <p className="text-gray-400 mb-1">Total Spent</p>
+                  <p className="text-xl font-bold text-gray-900">{totalPaid.toLocaleString()} <span className="text-sm font-normal text-gray-500">mUSDT</span></p>
+                </div>
+                <div>
+                  <p className="text-gray-400 mb-1">Est. Portfolio Value</p>
+                  <p className="text-xl font-bold text-blue-600">{totalEstValue.toLocaleString()} <span className="text-sm font-normal text-gray-500">mUSDT</span></p>
+                </div>
+                <div>
+                  <p className="text-gray-400 mb-1">Unrealized Gain</p>
+                  <p className={`text-xl font-bold ${gain >= 0 ? "text-green-600" : "text-red-500"}`}>
+                    {gain >= 0 ? "+" : ""}{gain.toLocaleString()} <span className="text-sm font-normal text-gray-500">mUSDT</span>
+                  </p>
+                </div>
+              </div>
+            );
+          })()}
           {positions.map(({ asset, campaign, purchased, refunded, claimed, tokenBalance, claimable, isApproved }) => {
             const tokenPrice = Number(campaign.tokenPrice) / 1e6;
             const mUSDTPaid = Number(purchased) * tokenPrice;
