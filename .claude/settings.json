@@ -1,0 +1,22 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm pkg *)",
+      "Bash(npx hardhat *)",
+      "Bash(Get-ChildItem -Path \"d:\\\\Apps\\\\coast new v2\" -Directory)",
+      "Bash(Select-Object Name)",
+      "Bash(taskkill /PID 38780 /F)",
+      "Bash(taskkill /PID 50004 /F)",
+      "PowerShell(Stop-Process -Id 38780 -Force -ErrorAction SilentlyContinue)",
+      "PowerShell(Stop-Process -Id 50004 -Force -ErrorAction SilentlyContinue)",
+      "Bash(Get-Content \"C:\\\\Users\\\\Shin\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\d--Apps-coast-new-v2\\\\806ed68d-6c32-4b10-bd58-0ff39d493183\\\\tasks\\\\bhhet96hz.output\" -Wait)",
+      "Bash(Get-Content \"C:\\\\Users\\\\Shin\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\d--Apps-coast-new-v2\\\\806ed68d-6c32-4b10-bd58-0ff39d493183\\\\tasks\\\\bhhet96hz.output\")",
+      "Bash(npx next *)",
+      "Bash(netstat -ano)",
+      "Bash(findstr \":3000 :3001 :3002 :3003\")",
+      "Bash(findstr LISTENING)",
+      "PowerShell(Get-ChildItem -Path \"d:\\\\Apps\\\\coast new v2\" -Recurse -Directory | Select-Object -First 30 | ForEach-Object { $_.FullName })",
+      "Bash(dir /a \"d:\\\\Apps\\\\coast new v2\\\\contracts\")"
+    ]
+  }
+}
