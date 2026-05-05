@@ -26,6 +26,11 @@ export function addProperty(prop) {
   return newProp;
 }
 
+export function deleteProperty(id) {
+  const current = getProperties();
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(current.filter((p) => p.id !== id)));
+}
+
 export function useProperties() {
   const [properties, setProperties] = useState(SEED);
 
@@ -39,5 +44,10 @@ export function useProperties() {
     return newProp;
   }
 
-  return { properties, add };
+  function remove(id) {
+    deleteProperty(id);
+    setProperties(getProperties());
+  }
+
+  return { properties, add, remove };
 }

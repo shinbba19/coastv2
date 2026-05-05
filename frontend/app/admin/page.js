@@ -11,7 +11,7 @@ import { useProperties } from "@/lib/properties";
 import { connectWallet, switchToSepolia, formatDeadline, getReadProvider } from "@/lib/web3";
 
 export default function AdminPage() {
-  const { properties, add: addProperty } = useProperties();
+  const { properties, add: addProperty, remove: removeProperty } = useProperties();
   const [address, setAddress] = useState(null);
   const [isOwner, setIsOwner] = useState(false);
   const [campaigns, setCampaigns] = useState({});
@@ -720,6 +720,13 @@ export default function AdminPage() {
                         <p className="text-xs font-semibold text-amber-700">฿{p.thbPrice.toLocaleString()}</p>
                         <p className="text-xs text-gray-400">{p.targetAmount?.toLocaleString()} mUSDT</p>
                       </div>
+                    )}
+                    {p.id > 3 && (
+                      <button onClick={() => removeProperty(p.id)}
+                        className="ml-1 text-red-400 hover:text-red-600 transition text-lg leading-none"
+                        title="Remove property">
+                        ×
+                      </button>
                     )}
                   </div>
                 ))}
