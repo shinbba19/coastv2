@@ -202,14 +202,23 @@ export default function PortfolioPage() {
                   </div>
 
                   <div className="grid grid-cols-3 gap-3 text-sm mb-4">
-                    <div>
-                      <p className="text-gray-400">Tokens Purchased</p>
-                      <p className="font-semibold">{Number(purchased).toLocaleString()}</p>
-                    </div>
-                    <div>
-                      <p className="text-gray-400">mUSDT Paid</p>
-                      <p className="font-semibold">{mUSDTPaid.toLocaleString()} mUSDT</p>
-                    </div>
+                    {purchased > 0n ? (
+                      <>
+                        <div>
+                          <p className="text-gray-400">Tokens Purchased</p>
+                          <p className="font-semibold">{Number(purchased).toLocaleString()}</p>
+                        </div>
+                        <div>
+                          <p className="text-gray-400">mUSDT Paid</p>
+                          <p className="font-semibold">{mUSDTPaid.toLocaleString()} mUSDT</p>
+                        </div>
+                      </>
+                    ) : (
+                      <div className="col-span-2">
+                        <p className="text-gray-400">Source</p>
+                        <p className="font-semibold text-purple-700">Secondary Market</p>
+                      </div>
+                    )}
                     <div>
                       <p className="text-gray-400">Tokens in Wallet</p>
                       <p className="font-semibold">{heldBalance.toLocaleString()}</p>
