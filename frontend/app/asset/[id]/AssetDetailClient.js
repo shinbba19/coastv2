@@ -58,7 +58,13 @@ export default function AssetDetailClient({ id }) {
       if (SECONDARY_MARKET_ADDRESS) {
         const market = new ethers.Contract(SECONDARY_MARKET_ADDRESS, SECONDARY_MARKET_ABI, provider);
         const [ids, result] = await market.getActiveListings(assetId);
-        setListings(ids.map((id, i) => ({ id: Number(id), ...result[i] })));
+        setListings(ids.map((id, i) => ({
+          id: Number(id),
+          seller: result[i].seller,
+          amount: result[i].amount,
+          pricePerToken: result[i].pricePerToken,
+          active: result[i].active,
+        })));
       }
     } catch (err) {
       console.error("Failed to load data:", err);
