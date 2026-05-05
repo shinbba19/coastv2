@@ -6,7 +6,7 @@ const SEED = [
   { id: 2, name: "Grand Florida 1 Bedroom", location: "Na Jomtien, Pattaya, Thailand", description: "Modern 1-bedroom resort-style condominium with sea views, private beach access, and world-class amenities.", image: "https://images.unsplash.com/photo-1571003123894-1f0594d2b5d9?w=400", thbPrice: 6000000, targetAmount: 200000 },
   { id: 3, name: "Andromeda Pratumnak", location: "Pratumnak Hill, Pattaya, Thailand", description: "Luxury condominium on prestigious Pratumnak Hill with stunning sea views and premium lifestyle amenities.", image: "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=400", thbPrice: 12000000, targetAmount: 400000 },
 ];
-const STORAGE_KEY = "coast_properties_v3";
+const STORAGE_KEY = "coast_properties_v4";
 
 export function getProperties() {
   if (typeof window === "undefined") return SEED;
