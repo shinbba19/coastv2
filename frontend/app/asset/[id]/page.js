@@ -1,5 +1,6 @@
 "use client";
-import { useState, useEffect, use } from "react";
+import { useState, useEffect } from "react";
+import { useParams } from "next/navigation";
 import { ethers } from "ethers";
 import {
   FUNDING_VAULT_ADDRESS, FUNDING_VAULT_ABI,
@@ -10,9 +11,9 @@ import {
 import { getProperties } from "@/lib/properties";
 import { connectWallet, switchToSepolia, formatDeadline, getReadProvider } from "@/lib/web3";
 
-export default function AssetDetailPage({ params }) {
-  const { id } = use(params);
-  const assetId = parseInt(id);
+export default function AssetDetailPage() {
+  const params = useParams();
+  const assetId = parseInt(params.id);
 
   const [asset, setAsset] = useState(null);
   const [assetLoaded, setAssetLoaded] = useState(false);
