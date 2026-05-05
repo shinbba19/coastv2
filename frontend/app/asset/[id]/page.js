@@ -15,6 +15,7 @@ export default function AssetDetailPage({ params }) {
   const assetId = parseInt(id);
 
   const [asset, setAsset] = useState(null);
+  const [assetLoaded, setAssetLoaded] = useState(false);
   const [campaign, setCampaign] = useState(null);
   const [purchased, setPurchased] = useState(0n);
   const [musdtBalance, setMusdtBalance] = useState(null);
@@ -31,6 +32,7 @@ export default function AssetDetailPage({ params }) {
   useEffect(() => {
     const props = getProperties();
     setAsset(props.find((a) => a.id === assetId) || null);
+    setAssetLoaded(true);
   }, [assetId]);
 
   async function loadData(addr) {
@@ -154,7 +156,17 @@ export default function AssetDetailPage({ params }) {
     }
   }
 
-  if (!asset) return <div className="text-center py-20 text-gray-500">Asset not found.</div>;
+  if (!assetLoaded) return <div className="text-center py-20 text-gray-400">Loading...</div>;
+  if (!asset) return (
+    <div className="flex flex-col items-center justify-center py-24 gap-4">
+      <p className="text-4xl">🏗️</p>
+      <h2 className="text-xl font-semibold text-gray-800">Property not found</h2>
+      <p className="text-sm text-gray-400">Asset #{assetId} doesn't exist or was removed.</p>
+      <a href="/" className="mt-2 bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-xl text-sm font-semibold transition">
+        Back to Marketplace
+      </a>
+    </div>
+  );
 
   const deadlinePassed = campaign && Number(campaign.deadline) * 1000 < Date.now();
   const canBuy = campaign && campaign.deadline !== 0n && !campaign.finalized && !deadlinePassed;
