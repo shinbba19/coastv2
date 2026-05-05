@@ -4,6 +4,7 @@ export function generateStaticParams() {
   return Array.from({ length: 20 }, (_, i) => ({ id: String(i + 1) }));
 }
 
-export default function Page() {
-  return <AssetDetailClient />;
+export default async function Page({ params }) {
+  const { id } = await params;
+  return <AssetDetailClient id={id} />;
 }
