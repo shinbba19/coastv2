@@ -1,0 +1,20 @@
+services:
+  - type: web
+    name: coastv2
+    runtime: node
+    rootDir: frontend
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    envVars:
+      - key: NEXT_PUBLIC_MUSDT
+        sync: false
+      - key: NEXT_PUBLIC_FUNDING_VAULT
+        sync: false
+      - key: NEXT_PUBLIC_PROPERTY_TOKEN
+        sync: false
+      - key: NEXT_PUBLIC_DIVIDEND_VAULT
+        sync: false
+      - key: NEXT_PUBLIC_SECONDARY_MARKET
+        sync: false
+      - key: NEXT_PUBLIC_RPC_URL
+        sync: false
