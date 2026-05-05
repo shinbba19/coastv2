@@ -31,7 +31,8 @@ const PROPERTIES = [
 ];
 
 export async function GET(request, { params }) {
-  const id = parseInt(params.id);
+  const { id: rawId } = await params;
+  const id = parseInt(rawId);
   const prop = PROPERTIES.find((p) => p.id === id);
 
   const metadata = prop
