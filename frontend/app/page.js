@@ -1,6 +1,5 @@
 "use client";
 import { useState, useEffect } from "react";
-import Link from "next/link";
 import { ethers } from "ethers";
 import { FUNDING_VAULT_ADDRESS, FUNDING_VAULT_ABI } from "@/lib/contracts";
 import { useProperties } from "@/lib/properties";

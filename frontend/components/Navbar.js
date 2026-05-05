@@ -1,5 +1,4 @@
 "use client";
-import Link from "next/link";
 import { usePathname } from "next/navigation";
 import WalletButton from "./WalletButton";
 
@@ -16,12 +15,12 @@ export default function Navbar() {
   return (
     <nav className="bg-white border-b border-gray-200 px-6 py-4">
       <div className="max-w-6xl mx-auto flex items-center justify-between">
-        <Link href="/" className="text-xl font-bold text-blue-600">
+        <a href="/" className="text-xl font-bold text-blue-600">
           COAST v2
-        </Link>
+        </a>
         <div className="flex items-center gap-6">
           {links.map((l) => (
-            <Link
+            <a
               key={l.href}
               href={l.href}
               className={`text-sm font-medium transition ${
@@ -31,7 +30,7 @@ export default function Navbar() {
               }`}
             >
               {l.label}
-            </Link>
+            </a>
           ))}
           <WalletButton />
         </div>
