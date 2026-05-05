@@ -669,7 +669,7 @@ export default function AdminPage() {
                     onChange={(e) => {
                       const thb = e.target.value;
                       const auto = thb ? String(Math.round(parseInt(thb) / 30)) : "";
-                      setPropForm((f) => ({ ...f, thbPrice: thb, targetAmount: f.targetAmount || auto }));
+                      setPropForm((f) => ({ ...f, thbPrice: thb, targetAmount: auto }));
                     }}
                     placeholder="e.g. 6000000"
                     className="w-full border border-gray-200 rounded-lg pl-7 pr-3 py-2 text-sm" />
