@@ -5,14 +5,15 @@ export const DIVIDEND_VAULT_ADDRESS = process.env.NEXT_PUBLIC_DIVIDEND_VAULT || 
 export const SECONDARY_MARKET_ADDRESS = process.env.NEXT_PUBLIC_SECONDARY_MARKET || "";
 
 export const FUNDING_VAULT_ABI = [
-  "function createCampaign(uint256 assetId, uint256 targetAmount, uint256 totalSupply, uint256 duration) external",
+  "function createCampaign(uint256 assetId, uint256 targetAmount, uint256 totalSupply, uint256 duration, uint256 maxInvestors) external",
   "function buyTokens(uint256 assetId, uint256 tokenAmount) external",
   "function finalizeCampaign(uint256 assetId) external",
   "function claimTokens(uint256 assetId) external",
   "function claimRefund(uint256 assetId) external",
   "function releaseFunds(uint256 assetId) external",
   "function setPropertyToken(address _propertyToken) external",
-  "function getCampaign(uint256 assetId) external view returns (tuple(uint256 targetAmount, uint256 currentAmount, uint256 tokenPrice, uint256 totalSupply, uint256 deadline, bool funded, bool finalized, bool fundsReleased))",
+  "function getCampaign(uint256 assetId) external view returns (tuple(uint256 targetAmount, uint256 currentAmount, uint256 tokenPrice, uint256 totalSupply, uint256 deadline, uint256 maxInvestors, uint256 investorCount, bool funded, bool finalized, bool fundsReleased))",
+  "function isInvestor(uint256 assetId, address investor) external view returns (bool)",
   "function getPurchasedTokens(uint256 assetId, address investor) external view returns (uint256)",
   "function purchasedTokens(uint256, address) external view returns (uint256)",
   "function refundClaimed(uint256, address) external view returns (bool)",

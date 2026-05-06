@@ -174,7 +174,10 @@ export default function AssetDetailClient({ id }) {
   );
 
   const deadlinePassed = campaign && Number(campaign.deadline) * 1000 < Date.now();
-  const canBuy = campaign && campaign.deadline !== 0n && !campaign.finalized && !deadlinePassed;
+  const investorsFull = campaign && campaign.maxInvestors > 0n
+    && campaign.investorCount >= campaign.maxInvestors;
+  const canBuy = campaign && campaign.deadline !== 0n && !campaign.finalized && !deadlinePassed
+    && (!investorsFull || purchased > 0n);
   const tokenPrice = campaign ? Number(campaign.tokenPrice) / 1e6 : 0;
   const totalSupply = campaign ? Number(campaign.totalSupply) : 0;
   const soldTokens = campaign && campaign.tokenPrice > 0n
@@ -212,7 +215,7 @@ export default function AssetDetailClient({ id }) {
 
           {campaign && campaign.deadline !== 0n ? (
             <>
-              <div className="grid grid-cols-3 gap-3 mb-4">
+              <div className="grid grid-cols-4 gap-3 mb-4">
                 <div className="bg-gray-50 rounded-xl p-3 text-center">
                   <p className="text-xs text-gray-400 mb-1">Total Tokens</p>
                   <p className="font-bold text-gray-900">{totalSupply.toLocaleString()}</p>
@@ -224,6 +227,12 @@ export default function AssetDetailClient({ id }) {
                 <div className="bg-gray-50 rounded-xl p-3 text-center">
                   <p className="text-xs text-gray-400 mb-1">Available</p>
                   <p className="font-bold text-gray-900">{availableTokens.toLocaleString()}</p>
+                </div>
+                <div className={`rounded-xl p-3 text-center ${investorsFull ? "bg-red-50" : "bg-gray-50"}`}>
+                  <p className="text-xs text-gray-400 mb-1">Co-owners</p>
+                  <p className={`font-bold ${investorsFull ? "text-red-600" : "text-gray-900"}`}>
+                    {Number(campaign.investorCount)} / {Number(campaign.maxInvestors)}
+                  </p>
                 </div>
               </div>
 
@@ -320,6 +329,11 @@ export default function AssetDetailClient({ id }) {
               {txMsg && (
                 <p className={`text-sm text-center ${txMsg.startsWith("Error") ? "text-red-500" : "text-green-600"}`}>{txMsg}</p>
               )}
+            </div>
+          ) : investorsFull && purchased === 0n ? (
+            <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-center">
+              <p className="text-sm font-medium text-red-700">Co-owner limit reached</p>
+              <p className="text-xs text-red-500 mt-1">This property has reached its maximum number of co-owners ({Number(campaign.maxInvestors)}). Check the secondary market for available tokens.</p>
             </div>
           ) : campaign && campaign.finalized && !campaign.funded && purchased > 0n ? (
             <p className="text-center text-sm text-gray-500">

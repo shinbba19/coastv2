@@ -22,7 +22,7 @@ export default function AdminPage() {
   const [activeTab, setActiveTab] = useState("summary");
 
   // Campaign form — default targetAmount from first seed property
-  const [form, setForm] = useState({ assetId: "1", targetAmount: "666667", totalSupply: "1000", durationDays: "30" });
+  const [form, setForm] = useState({ assetId: "1", targetAmount: "666667", totalSupply: "1000", durationDays: "30", maxInvestors: "10" });
 
   // Property form
   const [propForm, setPropForm] = useState({ name: "", location: "", description: "", image: "", thbPrice: "", targetAmount: "" });
@@ -161,7 +161,8 @@ export default function AdminPage() {
       const target = ethers.parseUnits(form.targetAmount, 6);
       const supply = parseInt(form.totalSupply);
       const duration = parseInt(form.durationDays) * 86400;
-      const tx = await vault.createCampaign(parseInt(form.assetId), target, supply, duration);
+      const maxInvestors = parseInt(form.maxInvestors) || 10;
+      const tx = await vault.createCampaign(parseInt(form.assetId), target, supply, duration, maxInvestors);
       await tx.wait();
       setTxMsg((p) => ({ ...p, create: "Campaign created & tokens minted to vault!" }));
       loadCampaigns(address);
@@ -546,6 +547,12 @@ export default function AdminPage() {
                 <label className="text-xs text-gray-500 mb-1 block">Duration (days)</label>
                 <input type="number" value={form.durationDays}
                   onChange={(e) => setForm((f) => ({ ...f, durationDays: e.target.value }))}
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm" />
+              </div>
+              <div>
+                <label className="text-xs text-gray-500 mb-1 block">Max Co-owners (Chanote)</label>
+                <input type="number" min="1" max="100" value={form.maxInvestors}
+                  onChange={(e) => setForm((f) => ({ ...f, maxInvestors: e.target.value }))}
                   className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm" />
               </div>
             </div>
