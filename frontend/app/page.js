@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import { ethers } from "ethers";
-import { FUNDING_VAULT_ADDRESS, FUNDING_VAULT_ABI } from "@/lib/contracts";
+import { FUNDING_VAULT_ADDRESS, FUNDING_VAULT_ABI, SALE_VOTING_ADDRESS, SALE_VOTING_ABI } from "@/lib/contracts";
 import { useProperties } from "@/lib/properties";
 import { getReadProvider } from "@/lib/web3";
 
@@ -55,14 +55,27 @@ function TokenProgress({ campaign }) {
 export default function MarketplacePage() {
   const { properties } = useProperties();
   const [campaigns, setCampaigns] = useState({});
+  const [saleStatuses, setSaleStatuses] = useState({});
 
   useEffect(() => {
     async function load() {
       const results = {};
+      const saleResults = {};
+      const provider = getReadProvider();
+      const sv = SALE_VOTING_ADDRESS
+        ? new ethers.Contract(SALE_VOTING_ADDRESS, SALE_VOTING_ABI, provider)
+        : null;
       for (const asset of properties) {
         results[asset.id] = await fetchCampaign(asset.id);
+        if (sv) {
+          try {
+            const raw = await sv.getProposal(asset.id);
+            saleResults[asset.id] = { approved: raw[4], closed: raw[5] };
+          } catch { /* skip */ }
+        }
       }
       setCampaigns(results);
+      setSaleStatuses(saleResults);
     }
     load();
   }, [properties]);
@@ -77,6 +90,9 @@ export default function MarketplacePage() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {properties.map((asset) => {
           const c = campaigns[asset.id];
+          const sale = saleStatuses[asset.id];
+          const saleApproved = sale?.approved;
+          const saleClosed = sale?.closed;
           return (
             <div key={asset.id} className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-md transition">
               <img src={asset.image} alt={asset.name} className="w-full h-48 object-cover" />
@@ -86,7 +102,11 @@ export default function MarketplacePage() {
                     <h2 className="font-semibold text-gray-900">{asset.name}</h2>
                     <p className="text-sm text-gray-500">{asset.location}</p>
                   </div>
-                  <StatusBadge campaign={c} />
+                  <div className="flex flex-col items-end gap-1">
+                    <StatusBadge campaign={c} />
+                    {saleClosed && <span className="text-xs bg-gray-200 text-gray-600 px-2 py-0.5 rounded-full">Archived</span>}
+                    {saleApproved && !saleClosed && <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">Sale Agreed</span>}
+                  </div>
                 </div>
                 <p className="text-sm text-gray-600 mb-3 line-clamp-2">{asset.description}</p>
                 {(() => {
@@ -105,12 +125,18 @@ export default function MarketplacePage() {
                   );
                 })()}
                 <TokenProgress campaign={c} />
-                <a
-                  href={`/asset/${asset.id}`}
-                  className="mt-4 block w-full text-center bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg text-sm font-semibold transition"
-                >
-                  Buy Tokens
-                </a>
+                {saleApproved || saleClosed ? (
+                  <div className={`mt-4 w-full text-center py-2 rounded-lg text-sm font-semibold ${saleClosed ? "bg-gray-100 text-gray-400" : "bg-amber-50 text-amber-700 border border-amber-200"}`}>
+                    {saleClosed ? "Property Archived" : "Sale In Progress"}
+                  </div>
+                ) : (
+                  <a
+                    href={`/asset/${asset.id}`}
+                    className="mt-4 block w-full text-center bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg text-sm font-semibold transition"
+                  >
+                    Buy Tokens
+                  </a>
+                )}
               </div>
             </div>
           );

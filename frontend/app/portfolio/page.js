@@ -5,8 +5,7 @@ import {
   FUNDING_VAULT_ADDRESS, FUNDING_VAULT_ABI,
   PROPERTY_TOKEN_ADDRESS, PROPERTY_TOKEN_FULL_ABI,
   DIVIDEND_VAULT_ADDRESS, DIVIDEND_VAULT_ABI,
-  SECONDARY_MARKET_ADDRESS, SECONDARY_MARKET_ABI,
-  MUSDT_ADDRESS, ERC20_ABI,
+  SALE_VOTING_ADDRESS, SALE_VOTING_ABI,
 } from "@/lib/contracts";
 import { useProperties } from "@/lib/properties";
 import { connectWallet, switchToSepolia, getReadProvider } from "@/lib/web3";
@@ -17,7 +16,7 @@ export default function PortfolioPage() {
   const [positions, setPositions] = useState([]);
   const [loading, setLoading] = useState(false);
   const [txMsg, setTxMsg] = useState({});
-  const [listForm, setListForm] = useState({});
+  const [proposePrice, setProposePrice] = useState({});
 
   async function loadPortfolio(addr) {
     if (!FUNDING_VAULT_ADDRESS || !addr) return;
@@ -30,6 +29,9 @@ export default function PortfolioPage() {
       const divVault = DIVIDEND_VAULT_ADDRESS
         ? new ethers.Contract(DIVIDEND_VAULT_ADDRESS, DIVIDEND_VAULT_ABI, provider)
         : null;
+      const saleVoting = SALE_VOTING_ADDRESS
+        ? new ethers.Contract(SALE_VOTING_ADDRESS, SALE_VOTING_ABI, provider)
+        : null;
 
       const results = [];
       for (const asset of properties) {
@@ -41,12 +43,28 @@ export default function PortfolioPage() {
         ]);
         const tokenBalance = tokenContract ? await tokenContract.balanceOf(addr, asset.id) : 0n;
         const claimable = divVault ? await divVault.getClaimable(asset.id, addr) : 0n;
-        const isApproved = tokenContract && SECONDARY_MARKET_ADDRESS
-          ? await tokenContract.isApprovedForAll(addr, SECONDARY_MARKET_ADDRESS)
-          : false;
+
+        let proposal = null;
+        let alreadyVoted = false;
+        if (saleVoting) {
+          try {
+            const raw = await saleVoting.getProposal(asset.id);
+            proposal = {
+              suggestedPrice: raw[0],
+              deadline: raw[1],
+              yesVotes: raw[2],
+              noVotes: raw[3],
+              approved: raw[4],
+              closed: raw[5],
+            };
+            if (tokenBalance > 0n && proposal.deadline > 0n) {
+              alreadyVoted = await saleVoting.hasVoted(asset.id, addr);
+            }
+          } catch { /* skip */ }
+        }
 
         if (purchased > 0n || tokenBalance > 0n) {
-          results.push({ asset, campaign, purchased, refunded, claimed, tokenBalance, claimable, isApproved });
+          results.push({ asset, campaign, purchased, refunded, claimed, tokenBalance, claimable, proposal, alreadyVoted });
         }
       }
       setPositions(results);
@@ -115,35 +133,39 @@ export default function PortfolioPage() {
     } finally { setLoading(false); }
   }
 
-  async function doListForSale(assetId, isApproved) {
-    const f = listForm[assetId] || {};
-    const amount = parseInt(f.amount);
-    const price = f.price;
-    if (!amount || amount <= 0 || !price || parseFloat(price) <= 0) {
-      setTxMsg((p) => ({ ...p, [`list_${assetId}`]: "Enter valid amount and price." }));
-      return;
-    }
+  async function handleVote(assetId, approve) {
     setLoading(true);
-    setTxMsg((p) => ({ ...p, [`list_${assetId}`]: "" }));
+    setTxMsg((p) => ({ ...p, [`vote_${assetId}`]: "Submitting vote..." }));
     try {
       await switchToSepolia();
       const { signer } = await connectWallet();
-      const tokenContract = new ethers.Contract(PROPERTY_TOKEN_ADDRESS, PROPERTY_TOKEN_FULL_ABI, signer);
-      const market = new ethers.Contract(SECONDARY_MARKET_ADDRESS, SECONDARY_MARKET_ABI, signer);
-      const pricePerToken = ethers.parseUnits(price, 6);
-
-      if (!isApproved) {
-        setTxMsg((p) => ({ ...p, [`list_${assetId}`]: "Approving marketplace..." }));
-        await (await tokenContract.setApprovalForAll(SECONDARY_MARKET_ADDRESS, true)).wait();
-      }
-
-      setTxMsg((p) => ({ ...p, [`list_${assetId}`]: "Listing tokens..." }));
-      await (await market.listToken(assetId, amount, pricePerToken)).wait();
-      setTxMsg((p) => ({ ...p, [`list_${assetId}`]: `Listed ${amount} token(s) at ${price} mUSDT each!` }));
-      setListForm((f) => ({ ...f, [assetId]: { amount: "", price: "" } }));
+      const sv = new ethers.Contract(SALE_VOTING_ADDRESS, SALE_VOTING_ABI, signer);
+      await (await sv.voteSale(assetId, approve)).wait();
+      setTxMsg((p) => ({ ...p, [`vote_${assetId}`]: approve ? "Voted Yes!" : "Voted No!" }));
       loadPortfolio(address);
     } catch (err) {
-      setTxMsg((p) => ({ ...p, [`list_${assetId}`]: "Error: " + (err.reason || err.message) }));
+      setTxMsg((p) => ({ ...p, [`vote_${assetId}`]: "Error: " + (err.reason || err.message) }));
+    } finally { setLoading(false); }
+  }
+
+  async function handlePropose(assetId) {
+    const price = proposePrice[assetId];
+    if (!price || parseFloat(price) <= 0) {
+      setTxMsg((p) => ({ ...p, [`vote_${assetId}`]: "Enter a suggested sale price." }));
+      return;
+    }
+    setLoading(true);
+    setTxMsg((p) => ({ ...p, [`vote_${assetId}`]: "Proposing sale..." }));
+    try {
+      await switchToSepolia();
+      const { signer } = await connectWallet();
+      const sv = new ethers.Contract(SALE_VOTING_ADDRESS, SALE_VOTING_ABI, signer);
+      await (await sv.proposeSale(assetId, ethers.parseUnits(price, 6))).wait();
+      setTxMsg((p) => ({ ...p, [`vote_${assetId}`]: "Sale proposal created!" }));
+      setProposePrice((p) => ({ ...p, [assetId]: "" }));
+      loadPortfolio(address);
+    } catch (err) {
+      setTxMsg((p) => ({ ...p, [`vote_${assetId}`]: "Error: " + (err.reason || err.message) }));
     } finally { setLoading(false); }
   }
 
@@ -202,15 +224,13 @@ export default function PortfolioPage() {
               </div>
             );
           })()}
-          {positions.map(({ asset, campaign, purchased, refunded, claimed, tokenBalance, claimable, isApproved }) => {
+          {positions.map(({ asset, campaign, purchased, refunded, claimed, tokenBalance, claimable, proposal, alreadyVoted }) => {
             const tokenPrice = Number(campaign.tokenPrice) / 1e6;
             const mUSDTPaid = Number(purchased) * tokenPrice;
             const canClaim = campaign.finalized && campaign.funded && !claimed && purchased > 0n;
             const canRefund = campaign.finalized && !campaign.funded && !refunded && purchased > 0n;
             const claimableAmt = Number(ethers.formatUnits(claimable, 6));
             const heldBalance = Number(tokenBalance);
-            const canList = heldBalance > 0 && SECONDARY_MARKET_ADDRESS;
-            const f = listForm[asset.id] || {};
 
             return (
               <div key={asset.id} className="bg-white rounded-2xl border border-gray-100 p-6 flex gap-6">
@@ -279,39 +299,108 @@ export default function PortfolioPage() {
                     </p>
                   )}
 
-                  {/* List for Sale */}
-                  {canList && (
-                    <div className="bg-purple-50 rounded-lg p-3 mb-3">
-                      <p className="text-xs font-medium text-purple-700 mb-2">List Tokens for Sale</p>
-                      <div className="flex gap-2 items-center flex-wrap">
-                        <input
-                          type="number" min="1" max={heldBalance}
-                          placeholder="Amount"
-                          value={f.amount || ""}
-                          onChange={(e) => setListForm((lf) => ({ ...lf, [asset.id]: { ...lf[asset.id], amount: e.target.value } }))}
-                          className="w-24 border border-purple-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-purple-400"
-                        />
-                        <input
-                          type="number" min="0.000001" step="any"
-                          placeholder="Price / token (mUSDT)"
-                          value={f.price || ""}
-                          onChange={(e) => setListForm((lf) => ({ ...lf, [asset.id]: { ...lf[asset.id], price: e.target.value } }))}
-                          className="w-44 border border-purple-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-purple-400"
-                        />
-                        <button
-                          onClick={() => doListForSale(asset.id, isApproved)}
-                          disabled={loading}
-                          className="bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white px-3 py-1.5 rounded-lg text-xs font-semibold transition whitespace-nowrap"
-                        >
-                          {isApproved ? "List for Sale" : "Approve & List"}
-                        </button>
+                  {/* Sale Voting Widget */}
+                  {tokenBalance > 0n && SALE_VOTING_ADDRESS && (() => {
+                    const p = proposal;
+                    const totalSupply = Number(campaign.totalSupply);
+                    const yesPercent = totalSupply > 0 ? Math.round(Number(p?.yesVotes ?? 0n) / totalSupply * 100) : 0;
+
+                    if (!p || p.deadline === 0n) {
+                      return (
+                        <div className="bg-amber-50 rounded-lg p-3 mb-3">
+                          <p className="text-xs font-medium text-amber-700 mb-2">Collective Sale</p>
+                          <div className="flex gap-2 items-center">
+                            <input
+                              type="number" step="any" placeholder="Suggested price (mUSDT)"
+                              value={proposePrice[asset.id] || ""}
+                              onChange={(e) => setProposePrice((pp) => ({ ...pp, [asset.id]: e.target.value }))}
+                              className="flex-1 border border-amber-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-amber-400"
+                            />
+                            <button onClick={() => handlePropose(asset.id)} disabled={loading}
+                              className="bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition">
+                              Propose Sale
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    }
+
+                    if (p.closed) {
+                      return (
+                        <div className="bg-gray-100 rounded-lg p-3 mb-3">
+                          <p className="text-xs text-gray-500">Property Archived — sale completed at กรมที่ดิน</p>
+                        </div>
+                      );
+                    }
+
+                    if (p.approved) {
+                      return (
+                        <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-3">
+                          <p className="text-xs font-semibold text-amber-800">Sale Approved</p>
+                          <p className="text-xs text-amber-600 mt-0.5">Majority agreed — proceed to กรมที่ดิน for transfer.</p>
+                        </div>
+                      );
+                    }
+
+                    const now = BigInt(Math.floor(Date.now() / 1000));
+                    const isActive = p.deadline > now;
+                    const daysLeft = Math.max(0, Math.ceil((Number(p.deadline) - Date.now() / 1000) / 86400));
+                    const suggestedPriceFmt = Number(ethers.formatUnits(p.suggestedPrice, 6)).toLocaleString();
+
+                    if (isActive) {
+                      return (
+                        <div className="bg-amber-50 rounded-lg p-3 mb-3">
+                          <div className="flex items-center justify-between mb-1.5">
+                            <p className="text-xs font-medium text-amber-700">Sale Vote Active</p>
+                            <span className="text-xs text-amber-600">{daysLeft}d left · {suggestedPriceFmt} mUSDT</span>
+                          </div>
+                          <div className="w-full bg-amber-200 rounded-full h-1.5 mb-1.5">
+                            <div className="bg-green-500 h-1.5 rounded-full" style={{ width: `${yesPercent}%` }} />
+                          </div>
+                          <p className="text-xs text-gray-500 mb-2">
+                            {Number(p.yesVotes).toLocaleString()} yes / {Number(p.noVotes).toLocaleString()} no ({yesPercent}% of supply)
+                          </p>
+                          {!alreadyVoted ? (
+                            <div className="flex gap-2">
+                              <button onClick={() => handleVote(asset.id, true)} disabled={loading}
+                                className="flex-1 bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white py-1.5 rounded-lg text-xs font-semibold transition">
+                                Vote Yes
+                              </button>
+                              <button onClick={() => handleVote(asset.id, false)} disabled={loading}
+                                className="flex-1 bg-red-500 hover:bg-red-600 disabled:opacity-50 text-white py-1.5 rounded-lg text-xs font-semibold transition">
+                                Vote No
+                              </button>
+                            </div>
+                          ) : (
+                            <p className="text-xs text-gray-400">You have voted</p>
+                          )}
+                        </div>
+                      );
+                    }
+
+                    return (
+                      <div className="bg-gray-50 rounded-lg p-3 mb-3">
+                        <p className="text-xs text-gray-500 mb-2">Proposal expired — majority not reached.</p>
+                        <div className="flex gap-2 items-center">
+                          <input
+                            type="number" step="any" placeholder="New suggested price (mUSDT)"
+                            value={proposePrice[asset.id] || ""}
+                            onChange={(e) => setProposePrice((pp) => ({ ...pp, [asset.id]: e.target.value }))}
+                            className="flex-1 border border-gray-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-gray-400"
+                          />
+                          <button onClick={() => handlePropose(asset.id)} disabled={loading}
+                            className="bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition">
+                            New Proposal
+                          </button>
+                        </div>
                       </div>
-                      {txMsg[`list_${asset.id}`] && (
-                        <p className={`text-xs mt-1.5 ${txMsg[`list_${asset.id}`].startsWith("Error") ? "text-red-500" : "text-purple-700"}`}>
-                          {txMsg[`list_${asset.id}`]}
-                        </p>
-                      )}
-                    </div>
+                    );
+                  })()}
+
+                  {txMsg[`vote_${asset.id}`] && (
+                    <p className={`text-xs mb-2 ${txMsg[`vote_${asset.id}`].startsWith("Error") ? "text-red-500" : "text-amber-700"}`}>
+                      {txMsg[`vote_${asset.id}`]}
+                    </p>
                   )}
 
                   {/* Claim / Refund */}

@@ -5,7 +5,7 @@ import {
   FUNDING_VAULT_ADDRESS, FUNDING_VAULT_ABI,
   MUSDT_ADDRESS, ERC20_ABI,
   DIVIDEND_VAULT_ADDRESS, DIVIDEND_VAULT_ABI,
-  SECONDARY_MARKET_ADDRESS, SECONDARY_MARKET_ABI,
+  SALE_VOTING_ADDRESS, SALE_VOTING_ABI,
 } from "@/lib/contracts";
 import { getProperties } from "@/lib/properties";
 import { connectWallet, switchToSepolia, formatDeadline, getReadProvider } from "@/lib/web3";
@@ -19,14 +19,18 @@ export default function AssetDetailClient({ id }) {
   const [purchased, setPurchased] = useState(0n);
   const [musdtBalance, setMusdtBalance] = useState(null);
   const [claimable, setClaimable] = useState(null);
-  const [listings, setListings] = useState([]);
   const [address, setAddress] = useState(null);
   const [tokenAmount, setTokenAmount] = useState("");
-  const [buyQty, setBuyQty] = useState({});
   const [loading, setLoading] = useState(false);
   const [txMsg, setTxMsg] = useState("");
   const [divMsg, setDivMsg] = useState("");
-  const [buyMsg, setBuyMsg] = useState({});
+
+  // Sale voting state
+  const [proposal, setProposal] = useState(null);
+  const [alreadyVoted, setAlreadyVoted] = useState(false);
+  const [proposePrice, setProposePrice] = useState("");
+  const [voteMsg, setVoteMsg] = useState("");
+  const [voteLoading, setVoteLoading] = useState(false);
 
   useEffect(() => {
     const props = getProperties();
@@ -55,16 +59,14 @@ export default function AssetDetailClient({ id }) {
         setClaimable(Number(ethers.formatUnits(cl, 6)));
       }
 
-      if (SECONDARY_MARKET_ADDRESS) {
-        const market = new ethers.Contract(SECONDARY_MARKET_ADDRESS, SECONDARY_MARKET_ABI, provider);
-        const [ids, result] = await market.getActiveListings(assetId);
-        setListings(ids.map((id, i) => ({
-          id: Number(id),
-          seller: result[i].seller,
-          amount: result[i].amount,
-          pricePerToken: result[i].pricePerToken,
-          active: result[i].active,
-        })));
+      if (SALE_VOTING_ADDRESS) {
+        const sv = new ethers.Contract(SALE_VOTING_ADDRESS, SALE_VOTING_ABI, provider);
+        const prop = await sv.getProposal(assetId);
+        setProposal(prop);
+        if (addr) {
+          const voted = await sv.hasVoted(assetId, addr);
+          setAlreadyVoted(voted);
+        }
       }
     } catch (err) {
       console.error("Failed to load data:", err);
@@ -133,31 +135,39 @@ export default function AssetDetailClient({ id }) {
     }
   }
 
-  async function handleBuyListing(listingId, pricePerToken, maxAmount) {
-    const qty = parseInt(buyQty[listingId] || "1");
-    if (!qty || qty <= 0 || qty > maxAmount) {
-      setBuyMsg((p) => ({ ...p, [listingId]: "Invalid quantity." }));
-      return;
-    }
-    setBuyMsg((p) => ({ ...p, [listingId]: "Approving mUSDT..." }));
+  async function handleProposeSale() {
+    const price = ethers.parseUnits(proposePrice || "0", 6);
+    setVoteLoading(true);
+    setVoteMsg("");
     try {
       await switchToSepolia();
       const { signer } = await connectWallet();
-      const cost = BigInt(qty) * pricePerToken;
-      const musdt = new ethers.Contract(MUSDT_ADDRESS, ERC20_ABI, signer);
-      const market = new ethers.Contract(SECONDARY_MARKET_ADDRESS, SECONDARY_MARKET_ABI, signer);
-      const signerAddr = await signer.getAddress();
-      const allowance = await musdt.allowance(signerAddr, SECONDARY_MARKET_ADDRESS);
-      if (allowance < cost) {
-        await (await musdt.approve(SECONDARY_MARKET_ADDRESS, cost)).wait();
-      }
-      setBuyMsg((p) => ({ ...p, [listingId]: "Buying..." }));
-      await (await market.buyListing(listingId, qty)).wait();
-      setBuyMsg((p) => ({ ...p, [listingId]: "Purchased!" }));
-      setBuyQty((q) => ({ ...q, [listingId]: "" }));
+      const sv = new ethers.Contract(SALE_VOTING_ADDRESS, SALE_VOTING_ABI, signer);
+      await (await sv.proposeSale(assetId, price)).wait();
+      setVoteMsg("Proposal submitted!");
+      setProposePrice("");
       loadData(address);
     } catch (err) {
-      setBuyMsg((p) => ({ ...p, [listingId]: "Error: " + (err.reason || err.message) }));
+      setVoteMsg("Error: " + (err.reason || err.message));
+    } finally {
+      setVoteLoading(false);
+    }
+  }
+
+  async function handleVote(approve) {
+    setVoteLoading(true);
+    setVoteMsg("");
+    try {
+      await switchToSepolia();
+      const { signer } = await connectWallet();
+      const sv = new ethers.Contract(SALE_VOTING_ADDRESS, SALE_VOTING_ABI, signer);
+      await (await sv.voteSale(assetId, approve)).wait();
+      setVoteMsg(approve ? "Voted Yes!" : "Voted No.");
+      loadData(address);
+    } catch (err) {
+      setVoteMsg("Error: " + (err.reason || err.message));
+    } finally {
+      setVoteLoading(false);
     }
   }
 
@@ -174,10 +184,11 @@ export default function AssetDetailClient({ id }) {
   );
 
   const deadlinePassed = campaign && Number(campaign.deadline) * 1000 < Date.now();
-  const investorsFull = campaign && campaign.maxInvestors > 0n
-    && campaign.investorCount >= campaign.maxInvestors;
+  const investorsFull = campaign && campaign.maxInvestors > 0n && campaign.investorCount >= campaign.maxInvestors;
+  const saleApproved = proposal?.approved;
+  const propertyClosed = proposal?.closed;
   const canBuy = campaign && campaign.deadline !== 0n && !campaign.finalized && !deadlinePassed
-    && (!investorsFull || purchased > 0n);
+    && (!investorsFull || purchased > 0n) && !saleApproved;
   const tokenPrice = campaign ? Number(campaign.tokenPrice) / 1e6 : 0;
   const totalSupply = campaign ? Number(campaign.totalSupply) : 0;
   const soldTokens = campaign && campaign.tokenPrice > 0n
@@ -185,11 +196,28 @@ export default function AssetDetailClient({ id }) {
     : 0;
   const availableTokens = totalSupply - soldTokens;
   const cost = tokenAmount && campaign ? (parseInt(tokenAmount) || 0) * tokenPrice : 0;
-  const myListings = listings.filter((l) => address && l.seller.toLowerCase() === address.toLowerCase());
-  const otherListings = listings.filter((l) => !address || l.seller.toLowerCase() !== address.toLowerCase());
+
+  // Sale voting derived values
+  const proposalActive = proposal && proposal.deadline > 0n && Number(proposal.deadline) * 1000 > Date.now() && !proposal.approved;
+  const proposalExpired = proposal && proposal.deadline > 0n && Number(proposal.deadline) * 1000 <= Date.now() && !proposal.approved;
+  const isCoOwner = purchased > 0n; // vault purchaser; secondary holders also qualify via on-chain check
 
   return (
     <div className="max-w-3xl mx-auto space-y-4">
+      {/* Sale approved / archived banner */}
+      {propertyClosed && (
+        <div className="bg-gray-100 border border-gray-300 rounded-2xl p-4 text-center">
+          <p className="font-semibold text-gray-600">Property Archived</p>
+          <p className="text-sm text-gray-400 mt-1">This property has been transferred at กรมที่ดิน and is no longer active.</p>
+        </div>
+      )}
+      {saleApproved && !propertyClosed && (
+        <div className="bg-amber-50 border border-amber-300 rounded-2xl p-4 text-center">
+          <p className="font-semibold text-amber-800">Sale Approved — Pending กรมที่ดิน Transfer</p>
+          <p className="text-sm text-amber-600 mt-1">All co-owners should go to the Land Department to complete the real-world transfer.</p>
+        </div>
+      )}
+
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
         <img src={asset.image} alt={asset.name} className="w-full h-64 object-cover" />
         <div className="p-8">
@@ -330,10 +358,10 @@ export default function AssetDetailClient({ id }) {
                 <p className={`text-sm text-center ${txMsg.startsWith("Error") ? "text-red-500" : "text-green-600"}`}>{txMsg}</p>
               )}
             </div>
-          ) : investorsFull && purchased === 0n ? (
+          ) : investorsFull && purchased === 0n && !saleApproved ? (
             <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-center">
               <p className="text-sm font-medium text-red-700">Co-owner limit reached</p>
-              <p className="text-xs text-red-500 mt-1">This property has reached its maximum number of co-owners ({Number(campaign.maxInvestors)}). Check the secondary market for available tokens.</p>
+              <p className="text-xs text-red-500 mt-1">This property has reached its maximum number of co-owners ({Number(campaign?.maxInvestors)}).</p>
             </div>
           ) : campaign && campaign.finalized && !campaign.funded && purchased > 0n ? (
             <p className="text-center text-sm text-gray-500">
@@ -343,57 +371,75 @@ export default function AssetDetailClient({ id }) {
         </div>
       </div>
 
-      {SECONDARY_MARKET_ADDRESS && (
+      {/* Sale Voting Panel */}
+      {SALE_VOTING_ADDRESS && campaign && campaign.finalized && campaign.funded && (
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-          <h2 className="font-semibold text-gray-900 mb-1">Secondary Market</h2>
-          <p className="text-xs text-gray-400 mb-4">Buy tokens from existing holders.</p>
-          <div className="space-y-3">
-            {listings.length === 0 && (
-              <p className="text-sm text-gray-400 text-center py-4">No listings yet. Token holders can list from their Portfolio.</p>
-            )}
-            {otherListings.map((listing) => {
-              const priceEach = Number(ethers.formatUnits(listing.pricePerToken, 6));
-              const qty = parseInt(buyQty[listing.id] || "1") || 1;
-              const totalCost = qty * priceEach;
-              return (
-                <div key={listing.id} className="flex items-center gap-4 bg-gray-50 rounded-xl p-4">
-                  <div className="flex-1">
-                    <p className="text-sm font-medium text-gray-900">{Number(listing.amount).toLocaleString()} tokens available</p>
-                    <p className="text-xs text-gray-500">
-                      {priceEach.toLocaleString()} mUSDT/token · Seller: {listing.seller.slice(0, 6)}...{listing.seller.slice(-4)}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <input type="number" min="1" max={Number(listing.amount)}
-                      value={buyQty[listing.id] || ""}
-                      onChange={(e) => setBuyQty((q) => ({ ...q, [listing.id]: e.target.value }))}
-                      placeholder="Qty"
-                      className="w-16 border border-gray-200 rounded-lg px-2 py-1.5 text-xs text-center focus:outline-none focus:ring-1 focus:ring-purple-400"
-                    />
-                    <span className="text-xs text-purple-700 font-semibold whitespace-nowrap">= {totalCost.toLocaleString()} mUSDT</span>
-                    <button onClick={() => handleBuyListing(listing.id, listing.pricePerToken, Number(listing.amount))}
-                      className="bg-purple-600 hover:bg-purple-700 text-white px-3 py-1.5 rounded-lg text-xs font-semibold transition whitespace-nowrap">
-                      Buy
-                    </button>
-                  </div>
+          <h2 className="font-semibold text-gray-900 mb-1">Co-owner Sale Agreement</h2>
+          <p className="text-xs text-gray-400 mb-4">Majority vote required to collectively sell this property at กรมที่ดิน.</p>
+
+          {propertyClosed ? (
+            <div className="text-center py-4 text-gray-400 text-sm">This property has been archived.</div>
+          ) : saleApproved ? (
+            <div className="bg-amber-50 rounded-xl p-4 text-center">
+              <p className="font-semibold text-amber-800">Sale Approved</p>
+              <p className="text-sm text-amber-600 mt-1">
+                {Number(proposal.yesVotes)} / {totalSupply} co-owners agreed.
+                Suggested price: {Number(ethers.formatUnits(proposal.suggestedPrice, 6)).toLocaleString()} mUSDT
+              </p>
+              <p className="text-xs text-amber-500 mt-2">Go to กรมที่ดิน to complete the transfer. Admin will archive the property afterward.</p>
+            </div>
+          ) : proposalActive ? (
+            <div className="space-y-3">
+              <div>
+                <div className="flex justify-between text-sm text-gray-600 mb-1">
+                  <span>{Number(proposal.yesVotes)} yes · {Number(proposal.noVotes)} no</span>
+                  <span>Expires {formatDeadline(proposal.deadline)}</span>
                 </div>
-              );
-            })}
-            {myListings.map((listing) => {
-              const priceEach = Number(ethers.formatUnits(listing.pricePerToken, 6));
-              return (
-                <div key={listing.id} className="flex items-center gap-4 bg-purple-50 border border-purple-100 rounded-xl p-4">
-                  <div className="flex-1">
-                    <p className="text-sm font-medium text-purple-900">Your listing · {Number(listing.amount).toLocaleString()} tokens</p>
-                    <p className="text-xs text-purple-500">{priceEach.toLocaleString()} mUSDT/token</p>
-                  </div>
-                  <span className="text-xs bg-purple-100 text-purple-700 px-2 py-1 rounded-full">Active</span>
+                <div className="w-full bg-gray-200 rounded-full h-2.5">
+                  <div className="bg-green-500 h-2.5 rounded-full transition-all"
+                    style={{ width: `${totalSupply > 0 ? Math.min(100, (Number(proposal.yesVotes) / totalSupply) * 100) : 0}%` }} />
                 </div>
-              );
-            })}
-          </div>
-          {Object.entries(buyMsg).map(([lid, msg]) =>
-            msg ? <p key={lid} className={`text-xs mt-2 ${msg.startsWith("Error") ? "text-red-500" : "text-green-600"}`}>{msg}</p> : null
+                <p className="text-xs text-gray-400 mt-1">
+                  Suggested price: {Number(ethers.formatUnits(proposal.suggestedPrice, 6)).toLocaleString()} mUSDT · Need majority ({Math.floor(totalSupply / 2) + 1} votes)
+                </p>
+              </div>
+              {address && isCoOwner && !alreadyVoted && (
+                <div className="flex gap-3">
+                  <button onClick={() => handleVote(true)} disabled={voteLoading}
+                    className="flex-1 bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white py-2 rounded-xl text-sm font-semibold transition">
+                    Agree to Sell
+                  </button>
+                  <button onClick={() => handleVote(false)} disabled={voteLoading}
+                    className="flex-1 bg-gray-200 hover:bg-gray-300 disabled:opacity-50 text-gray-700 py-2 rounded-xl text-sm font-semibold transition">
+                    Decline
+                  </button>
+                </div>
+              )}
+              {alreadyVoted && <p className="text-sm text-center text-gray-500">You have already voted on this proposal.</p>}
+              {!address && <p className="text-sm text-center text-gray-400">Connect wallet to vote.</p>}
+              {voteMsg && <p className={`text-sm text-center ${voteMsg.startsWith("Error") ? "text-red-500" : "text-green-600"}`}>{voteMsg}</p>}
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {proposalExpired && <p className="text-xs text-gray-400 text-center">Previous proposal expired without majority. A new one can be submitted.</p>}
+              {address && isCoOwner ? (
+                <>
+                  <div className="flex gap-3">
+                    <input type="number" min="0" value={proposePrice}
+                      onChange={(e) => setProposePrice(e.target.value)}
+                      placeholder="Suggested total price (mUSDT)"
+                      className="flex-1 border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400" />
+                  </div>
+                  <button onClick={handleProposeSale} disabled={voteLoading || !proposePrice}
+                    className="w-full bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white py-2.5 rounded-xl text-sm font-semibold transition">
+                    {voteLoading ? "Submitting..." : "Propose Collective Sale"}
+                  </button>
+                  {voteMsg && <p className={`text-sm text-center ${voteMsg.startsWith("Error") ? "text-red-500" : "text-green-600"}`}>{voteMsg}</p>}
+                </>
+              ) : (
+                <p className="text-sm text-center text-gray-400">Only co-owners can propose a sale.</p>
+              )}
+            </div>
           )}
         </div>
       )}

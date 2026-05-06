@@ -6,6 +6,7 @@ import {
   MUSDT_ADDRESS, ERC20_ABI,
   DIVIDEND_VAULT_ADDRESS, DIVIDEND_VAULT_ABI,
   SECONDARY_MARKET_ADDRESS, SECONDARY_MARKET_ABI,
+  SALE_VOTING_ADDRESS, SALE_VOTING_ABI,
 } from "@/lib/contracts";
 import { useProperties } from "@/lib/properties";
 import { connectWallet, switchToSepolia, formatDeadline, getReadProvider } from "@/lib/web3";
@@ -16,6 +17,7 @@ export default function AdminPage() {
   const [isOwner, setIsOwner] = useState(false);
   const [campaigns, setCampaigns] = useState({});
   const [dividends, setDividends] = useState({});
+  const [proposals, setProposals] = useState({});
   const [txHistory, setTxHistory] = useState([]);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [txMsg, setTxMsg] = useState({});
@@ -48,8 +50,19 @@ export default function AdminPage() {
           } catch { divResults[asset.id] = 0; }
         }
       }
+      const propResults = {};
+      if (SALE_VOTING_ADDRESS) {
+        const sv = new ethers.Contract(SALE_VOTING_ADDRESS, SALE_VOTING_ABI, provider);
+        for (const asset of properties) {
+          try {
+            const raw = await sv.getProposal(asset.id);
+            propResults[asset.id] = { suggestedPrice: raw[0], deadline: raw[1], yesVotes: raw[2], noVotes: raw[3], approved: raw[4], closed: raw[5] };
+          } catch { /* skip */ }
+        }
+      }
       setCampaigns(results);
       setDividends(divResults);
+      setProposals(propResults);
       if (addr) {
         const owner = await vault.owner();
         setIsOwner(owner.toLowerCase() === addr.toLowerCase());
@@ -194,6 +207,19 @@ export default function AdminPage() {
       loadCampaigns(address);
     } catch (err) {
       setTxMsg((p) => ({ ...p, [assetId]: "Error: " + (err.reason || err.message) }));
+    }
+  }
+
+  async function closeProperty(assetId) {
+    setTxMsg((p) => ({ ...p, [`close_${assetId}`]: "Closing property..." }));
+    try {
+      const { signer } = await connectWallet();
+      const sv = new ethers.Contract(SALE_VOTING_ADDRESS, SALE_VOTING_ABI, signer);
+      await (await sv.closeProperty(assetId)).wait();
+      setTxMsg((p) => ({ ...p, [`close_${assetId}`]: "Property closed!" }));
+      loadCampaigns(address);
+    } catch (err) {
+      setTxMsg((p) => ({ ...p, [`close_${assetId}`]: "Error: " + (err.reason || err.message) }));
     }
   }
 
@@ -626,7 +652,22 @@ export default function AdminPage() {
                       </button>
                     )}
                     {c.fundsReleased && <span className="text-sm text-gray-400 py-2">Funds released ✓</span>}
+                  {proposals[asset.id]?.approved && !proposals[asset.id]?.closed && (
+                    <button onClick={() => closeProperty(asset.id)}
+                      className="bg-gray-700 hover:bg-gray-800 text-white px-4 py-2 rounded-lg text-sm font-semibold transition">
+                      Close Property
+                    </button>
+                  )}
+                  {proposals[asset.id]?.closed && <span className="text-sm text-gray-400 py-2">Property archived ✓</span>}
                   </div>
+                  {proposals[asset.id]?.approved && !proposals[asset.id]?.closed && (
+                    <p className="text-xs text-amber-600 mt-2">Sale approved by co-owners — close after กรมที่ดิน transfer is complete.</p>
+                  )}
+                  {txMsg[`close_${asset.id}`] && (
+                    <p className={`text-sm mt-2 ${txMsg[`close_${asset.id}`].startsWith("Error") ? "text-red-500" : "text-green-600"}`}>
+                      {txMsg[`close_${asset.id}`]}
+                    </p>
+                  )}
                   {txMsg[asset.id] && (
                     <p className={`text-sm mt-2 ${txMsg[asset.id].startsWith("Error") ? "text-red-500" : "text-green-600"}`}>
                       {txMsg[asset.id]}

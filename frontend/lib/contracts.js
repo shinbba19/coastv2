@@ -3,6 +3,7 @@ export const FUNDING_VAULT_ADDRESS = process.env.NEXT_PUBLIC_FUNDING_VAULT || ""
 export const PROPERTY_TOKEN_ADDRESS = process.env.NEXT_PUBLIC_PROPERTY_TOKEN || "";
 export const DIVIDEND_VAULT_ADDRESS = process.env.NEXT_PUBLIC_DIVIDEND_VAULT || "";
 export const SECONDARY_MARKET_ADDRESS = process.env.NEXT_PUBLIC_SECONDARY_MARKET || "";
+export const SALE_VOTING_ADDRESS = process.env.NEXT_PUBLIC_SALE_VOTING || "";
 
 export const FUNDING_VAULT_ABI = [
   "function createCampaign(uint256 assetId, uint256 targetAmount, uint256 totalSupply, uint256 duration, uint256 maxInvestors) external",
@@ -75,6 +76,16 @@ export const PROPERTY_TOKEN_FULL_ABI = [
   "function totalMinted(uint256 assetId) external view returns (uint256)",
   "function isApprovedForAll(address account, address operator) external view returns (bool)",
   "function setApprovalForAll(address operator, bool approved) external",
+];
+
+export const SALE_VOTING_ABI = [
+  "function proposeSale(uint256 assetId, uint256 suggestedPrice) external",
+  "function voteSale(uint256 assetId, bool approve) external",
+  "function closeProperty(uint256 assetId) external",
+  "function getProposal(uint256 assetId) external view returns (tuple(uint256 suggestedPrice, uint256 deadline, uint256 yesVotes, uint256 noVotes, bool approved, bool closed))",
+  "function isSaleApproved(uint256 assetId) external view returns (bool)",
+  "function isPropertyClosed(uint256 assetId) external view returns (bool)",
+  "function hasVoted(uint256 assetId, address voter) external view returns (bool)",
 ];
 
 export const MOCK_ASSETS = [

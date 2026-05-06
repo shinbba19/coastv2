@@ -20,9 +20,11 @@ contract FundingVault is Ownable, IERC1155Receiver {
     struct Campaign {
         uint256 targetAmount;
         uint256 currentAmount;
-        uint256 tokenPrice;   // mUSDT per token (6 decimals)
-        uint256 totalSupply;  // total tokens in vault
+        uint256 tokenPrice;    // mUSDT per token (6 decimals)
+        uint256 totalSupply;   // total tokens in vault
         uint256 deadline;
+        uint256 maxInvestors;  // max unique co-owners (Chanote limit)
+        uint256 investorCount; // current unique investor count
         bool funded;
         bool finalized;
         bool fundsReleased;
@@ -33,6 +35,7 @@ contract FundingVault is Ownable, IERC1155Receiver {
     mapping(uint256 => mapping(address => uint256)) public purchasedTokens;
     mapping(uint256 => mapping(address => bool)) public refundClaimed;
     mapping(uint256 => mapping(address => bool)) public tokensClaimed;
+    mapping(uint256 => mapping(address => bool)) public isInvestor;
 
     event CampaignCreated(uint256 indexed assetId, uint256 targetAmount, uint256 tokenPrice, uint256 totalSupply, uint256 deadline);
     event TokensPurchased(uint256 indexed assetId, address indexed buyer, uint256 tokenAmount, uint256 cost);
@@ -54,10 +57,12 @@ contract FundingVault is Ownable, IERC1155Receiver {
         uint256 assetId,
         uint256 targetAmount,
         uint256 totalSupply,
-        uint256 duration
+        uint256 duration,
+        uint256 maxInvestors
     ) external onlyOwner {
         require(campaigns[assetId].deadline == 0, "Campaign already exists");
         require(targetAmount > 0 && totalSupply > 0 && duration > 0, "Invalid params");
+        require(maxInvestors > 0, "Max investors must be > 0");
         require(address(propertyToken) != address(0), "PropertyToken not set");
 
         uint256 tokenPrice = targetAmount / totalSupply;
@@ -69,6 +74,8 @@ contract FundingVault is Ownable, IERC1155Receiver {
             tokenPrice: tokenPrice,
             totalSupply: totalSupply,
             deadline: block.timestamp + duration,
+            maxInvestors: maxInvestors,
+            investorCount: 0,
             funded: false,
             finalized: false,
             fundsReleased: false
@@ -87,6 +94,12 @@ contract FundingVault is Ownable, IERC1155Receiver {
         require(block.timestamp < c.deadline, "Deadline passed");
         require(!c.finalized, "Campaign already finalized");
         require(tokenAmount > 0, "Amount must be > 0");
+
+        if (!isInvestor[assetId][msg.sender]) {
+            require(c.investorCount < c.maxInvestors, "Max investors reached");
+            isInvestor[assetId][msg.sender] = true;
+            campaigns[assetId].investorCount++;
+        }
 
         uint256 cost = tokenAmount * c.tokenPrice;
         require(c.currentAmount + cost <= c.targetAmount, "Exceeds available supply");
