@@ -25,6 +25,8 @@ export default function AssetDetailClient({ id }) {
   const [txMsg, setTxMsg] = useState("");
   const [divMsg, setDivMsg] = useState("");
 
+  const [divHistory, setDivHistory] = useState([]);
+
   // Sale voting state
   const [proposal, setProposal] = useState(null);
   const [alreadyVoted, setAlreadyVoted] = useState(false);
@@ -57,6 +59,22 @@ export default function AssetDetailClient({ id }) {
         const divVault = new ethers.Contract(DIVIDEND_VAULT_ADDRESS, DIVIDEND_VAULT_ABI, provider);
         const cl = await divVault.getClaimable(assetId, addr);
         setClaimable(Number(ethers.formatUnits(cl, 6)));
+      }
+
+      if (DIVIDEND_VAULT_ADDRESS) {
+        try {
+          const eventProvider = (typeof window !== "undefined" && window.ethereum)
+            ? new ethers.BrowserProvider(window.ethereum)
+            : new ethers.JsonRpcProvider("https://rpc.sepolia.org");
+          const dvEvents = new ethers.Contract(DIVIDEND_VAULT_ADDRESS, DIVIDEND_VAULT_ABI, eventProvider);
+          const logs = await dvEvents.queryFilter(dvEvents.filters.RevenueDeposited(assetId));
+          const history = await Promise.all(logs.map(async (e) => {
+            let date = null;
+            try { const blk = await eventProvider.getBlock(e.blockNumber); date = blk?.timestamp ? new Date(Number(blk.timestamp) * 1000) : null; } catch {}
+            return { amount: Number(ethers.formatUnits(e.args[1], 6)), date, txHash: e.transactionHash, blockNumber: e.blockNumber };
+          }));
+          setDivHistory(history.reverse());
+        } catch { setDivHistory([]); }
       }
 
       if (SALE_VOTING_ADDRESS) {
@@ -443,6 +461,45 @@ export default function AssetDetailClient({ id }) {
           )}
         </div>
       )}
+      {/* Revenue Distributions */}
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+        <h2 className="font-semibold text-gray-900 mb-1">Revenue Distributions</h2>
+        <p className="text-xs text-gray-400 mb-4">Rental income deposited on-chain and distributed to token holders.</p>
+        {divHistory.length === 0 ? (
+          <p className="text-sm text-gray-400 text-center py-4">No distributions yet.</p>
+        ) : (
+          <>
+            <div className="divide-y divide-gray-50">
+              {divHistory.map((item, i) => (
+                <div key={i} className="flex items-center gap-4 py-3">
+                  <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
+                    <span className="text-xs font-bold text-green-700">{divHistory.length - i}</span>
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-gray-900">
+                      {item.date
+                        ? item.date.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })
+                        : `Block ${item.blockNumber.toLocaleString()}`}
+                    </p>
+                    {totalSupply > 0 && (
+                      <p className="text-xs text-gray-400">{(item.amount / totalSupply).toFixed(4)} mUSDT / token</p>
+                    )}
+                  </div>
+                  <p className="text-sm font-semibold text-green-600">{item.amount.toLocaleString()} mUSDT</p>
+                  <a href={`https://sepolia.etherscan.io/tx/${item.txHash}`} target="_blank" rel="noreferrer"
+                    className="text-xs text-blue-500 hover:text-blue-700 transition">Tx ↗</a>
+                </div>
+              ))}
+            </div>
+            <div className="mt-3 pt-3 border-t border-gray-100 flex justify-between text-sm">
+              <span className="text-gray-500">Total Distributed</span>
+              <span className="font-bold text-green-700">
+                {divHistory.reduce((s, d) => s + d.amount, 0).toLocaleString()} mUSDT
+              </span>
+            </div>
+          </>
+        )}
+      </div>
     </div>
   );
 }

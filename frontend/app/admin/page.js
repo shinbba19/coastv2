@@ -823,6 +823,46 @@ export default function AdminPage() {
               {divMsg}
             </p>
           )}
+
+          {/* Per-asset distribution history from txHistory */}
+          {(() => {
+            const assetId = parseInt(divForm.assetId);
+            const assetHistory = txHistory.filter(
+              (row) => row.type === "Revenue Deposited" && row.assetId === assetId
+            );
+            if (assetHistory.length === 0) return (
+              <p className="text-sm text-gray-400 mt-6 text-center">No distributions recorded for this asset yet.</p>
+            );
+            const total = assetHistory.reduce((s, r) => s + (r.amount || 0), 0);
+            const assetName = properties.find((p) => p.id === assetId)?.name ?? `Asset #${assetId}`;
+            return (
+              <div className="mt-6">
+                <h3 className="text-sm font-semibold text-gray-700 mb-3">Distribution History — {assetName}</h3>
+                <div className="rounded-xl border border-gray-100 overflow-hidden">
+                  <div className="divide-y divide-gray-50">
+                    {assetHistory.map((row, i) => (
+                      <div key={i} className="flex items-center gap-4 px-4 py-3">
+                        <div className="w-7 h-7 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
+                          <span className="text-xs font-bold text-green-700">{assetHistory.length - i}</span>
+                        </div>
+                        <div className="flex-1">
+                          <p className="text-sm text-gray-700 font-medium">Round {assetHistory.length - i}</p>
+                          <p className="text-xs text-gray-400">Block {row.blockNumber.toLocaleString()}</p>
+                        </div>
+                        <p className="text-sm font-semibold text-green-700">{row.amount?.toLocaleString()} mUSDT</p>
+                        <a href={`https://sepolia.etherscan.io/tx/${row.txHash}`} target="_blank" rel="noreferrer"
+                          className="text-xs text-blue-500 hover:text-blue-700 transition">Tx ↗</a>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="bg-gray-50 px-4 py-3 flex justify-between text-sm border-t border-gray-100">
+                    <span className="text-gray-500 font-medium">Total Distributed</span>
+                    <span className="font-bold text-green-700">{total.toLocaleString()} mUSDT</span>
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
         </div>
       )}
     </div>
