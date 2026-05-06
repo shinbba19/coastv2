@@ -11,6 +11,8 @@ import {
 import { useProperties } from "@/lib/properties";
 import { connectWallet, switchToSepolia, formatDeadline, getReadProvider } from "@/lib/web3";
 
+const PLATFORM_FEE_PERCENT = 2.5;
+
 export default function AdminPage() {
   const { properties, add: addProperty, remove: removeProperty } = useProperties();
   const [address, setAddress] = useState(null);
@@ -638,6 +640,30 @@ export default function AdminPage() {
                   <div className="w-full bg-gray-200 rounded-full h-2 mb-4">
                     <div className="bg-blue-500 h-2 rounded-full" style={{ width: `${progress}%` }} />
                   </div>
+                  {c.finalized && c.funded && (() => {
+                    const totalRaised = Number(ethers.formatUnits(c.currentAmount, 6));
+                    const fee = totalRaised * PLATFORM_FEE_PERCENT / 100;
+                    const sellerReceives = totalRaised - fee;
+                    return (
+                      <div className="bg-amber-50 border border-amber-100 rounded-xl p-4 mb-4 text-sm">
+                        <p className="font-medium text-amber-800 mb-2">Fundraising Settlement</p>
+                        <div className="space-y-1">
+                          <div className="flex justify-between text-gray-600">
+                            <span>Total Raised</span>
+                            <span className="font-semibold">{totalRaised.toLocaleString()} mUSDT</span>
+                          </div>
+                          <div className="flex justify-between text-amber-700">
+                            <span>Platform Fee ({PLATFORM_FEE_PERCENT}%)</span>
+                            <span className="font-semibold">− {fee.toLocaleString()} mUSDT</span>
+                          </div>
+                          <div className="flex justify-between text-green-700 border-t border-amber-200 pt-1 mt-1">
+                            <span className="font-medium">{c.fundsReleased ? "Forwarded to Seller" : "Seller Receives"}</span>
+                            <span className="font-bold">{sellerReceives.toLocaleString()} mUSDT</span>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })()}
                   <div className="flex gap-3 flex-wrap">
                     {!c.finalized && (deadlinePassed || soldTokens >= Number(c.totalSupply)) && (
                       <button onClick={() => finalize(asset.id)}
@@ -648,7 +674,7 @@ export default function AdminPage() {
                     {c.finalized && c.funded && !c.fundsReleased && (
                       <button onClick={() => releaseFunds(asset.id)}
                         className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition">
-                        Release Funds
+                        Release Funds to Seller
                       </button>
                     )}
                     {c.fundsReleased && <span className="text-sm text-gray-400 py-2">Funds released ✓</span>}

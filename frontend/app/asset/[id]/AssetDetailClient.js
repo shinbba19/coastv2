@@ -10,6 +10,8 @@ import {
 import { getProperties } from "@/lib/properties";
 import { connectWallet, switchToSepolia, formatDeadline, getReadProvider } from "@/lib/web3";
 
+const PLATFORM_FEE_PERCENT = 2.5;
+
 export default function AssetDetailClient({ id }) {
   const assetId = parseInt(id);
 
@@ -292,6 +294,31 @@ export default function AssetDetailClient({ id }) {
                     style={{ width: `${totalSupply > 0 ? Math.min(100, (soldTokens / totalSupply) * 100) : 0}%` }} />
                 </div>
               </div>
+
+              {campaign.finalized && campaign.funded && (() => {
+                const totalRaised = Number(ethers.formatUnits(campaign.currentAmount, 6));
+                const fee = totalRaised * PLATFORM_FEE_PERCENT / 100;
+                const sellerReceives = totalRaised - fee;
+                return (
+                  <div className="bg-amber-50 border border-amber-100 rounded-xl p-4 mb-4 text-sm">
+                    <p className="font-medium text-amber-800 mb-2">Fundraising Settlement</p>
+                    <div className="space-y-1">
+                      <div className="flex justify-between text-gray-600">
+                        <span>Total Raised</span>
+                        <span className="font-semibold">{totalRaised.toLocaleString()} mUSDT</span>
+                      </div>
+                      <div className="flex justify-between text-amber-700">
+                        <span>Platform Fee ({PLATFORM_FEE_PERCENT}%)</span>
+                        <span className="font-semibold">− {fee.toLocaleString()} mUSDT</span>
+                      </div>
+                      <div className="flex justify-between text-green-700 border-t border-amber-200 pt-1 mt-1">
+                        <span className="font-medium">Seller Receives</span>
+                        <span className="font-bold">{sellerReceives.toLocaleString()} mUSDT</span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
 
               <div className="grid grid-cols-2 gap-3 text-sm mb-6">
                 <div className="bg-gray-50 rounded-lg p-3">
