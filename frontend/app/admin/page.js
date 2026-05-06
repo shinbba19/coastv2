@@ -22,7 +22,7 @@ export default function AdminPage() {
   const [activeTab, setActiveTab] = useState("summary");
 
   // Campaign form — default targetAmount from first seed property
-  const [form, setForm] = useState({ assetId: "1", targetAmount: "666667", totalSupply: "1000", durationDays: "30", maxInvestors: "5" });
+  const [form, setForm] = useState({ assetId: "1", targetAmount: "666667", totalSupply: "5", durationDays: "30", maxInvestors: "5" });
 
   // Property form
   const [propForm, setPropForm] = useState({ name: "", location: "", description: "", image: "", thbPrice: "", targetAmount: "" });
