@@ -2,7 +2,6 @@
 import { useState, useEffect } from "react";
 import { ethers } from "ethers";
 import {
-  FUNDING_VAULT_ADDRESS, FUNDING_VAULT_ABI,
   DIVIDEND_VAULT_ADDRESS, DIVIDEND_VAULT_ABI,
   PROPERTY_TOKEN_ADDRESS, PROPERTY_TOKEN_FULL_ABI,
 } from "@/lib/contracts";
@@ -22,27 +21,24 @@ export default function DividendsPage() {
     try {
       const provider = getReadProvider();
       const divVault = new ethers.Contract(DIVIDEND_VAULT_ADDRESS, DIVIDEND_VAULT_ABI, provider);
-      const vault = FUNDING_VAULT_ADDRESS
-        ? new ethers.Contract(FUNDING_VAULT_ADDRESS, FUNDING_VAULT_ABI, provider)
-        : null;
       const tokenContract = PROPERTY_TOKEN_ADDRESS
         ? new ethers.Contract(PROPERTY_TOKEN_ADDRESS, PROPERTY_TOKEN_FULL_ABI, provider)
         : null;
 
       const results = [];
       for (const asset of properties) {
-        const [totalDeposited, campaign, claimableRaw, tokenBalance] = await Promise.all([
+        const [totalDeposited, claimableRaw, tokenBalance, totalMinted] = await Promise.all([
           divVault.totalDeposited(asset.id),
-          vault ? vault.getCampaign(asset.id) : Promise.resolve(null),
           addr ? divVault.getClaimable(asset.id, addr) : Promise.resolve(0n),
           addr && tokenContract ? tokenContract.balanceOf(addr, asset.id) : Promise.resolve(0n),
+          tokenContract ? tokenContract.totalMinted(asset.id) : Promise.resolve(0n),
         ]);
 
         const totalDep = Number(ethers.formatUnits(totalDeposited, 6));
         const claimable = Number(ethers.formatUnits(claimableRaw, 6));
         const tokenBal = Number(tokenBalance);
-        const totalSupply = campaign ? Number(campaign.totalSupply) : 0;
-        const sharePercent = totalSupply > 0 ? (tokenBal / totalSupply) * 100 : 0;
+        const totalSupply = Number(totalMinted);
+        const sharePercent = totalSupply > 0 ? Math.min(100, (tokenBal / totalSupply) * 100) : 0;
 
         if (totalDep > 0 || tokenBal > 0) {
           results.push({ asset, totalDeposited: totalDep, claimable, tokenBalance: tokenBal, totalSupply, sharePercent });
