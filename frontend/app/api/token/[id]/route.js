@@ -7,8 +7,8 @@ const PROPERTIES = [
     description: "Premium 2-bedroom beachfront condominium on Wongamat Beach with panoramic sea views and resort-style facilities.",
     image: "https://images.unsplash.com/photo-1582268611958-ebfd161ef9cf?w=400",
     location: "Wongamat Beach, Pattaya, Thailand",
-    thbPrice: 20000000,
-    targetAmount: 666667,
+    thbPrice: 600000,
+    targetAmount: 20000,
   },
   {
     id: 2,
@@ -16,8 +16,8 @@ const PROPERTIES = [
     description: "Modern 1-bedroom resort-style condominium with sea views, private beach access, and world-class amenities.",
     image: "https://images.unsplash.com/photo-1571003123894-1f0594d2b5d9?w=400",
     location: "Na Jomtien, Pattaya, Thailand",
-    thbPrice: 6000000,
-    targetAmount: 200000,
+    thbPrice: 600000,
+    targetAmount: 20000,
   },
   {
     id: 3,
@@ -25,8 +25,8 @@ const PROPERTIES = [
     description: "Luxury condominium on prestigious Pratumnak Hill with stunning sea views and premium lifestyle amenities.",
     image: "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=400",
     location: "Pratumnak Hill, Pattaya, Thailand",
-    thbPrice: 12000000,
-    targetAmount: 400000,
+    thbPrice: 600000,
+    targetAmount: 20000,
   },
 ];
 

@@ -2,11 +2,11 @@
 import { useState, useEffect } from "react";
 
 const SEED = [
-  { id: 1, name: "The Palm Wongamat 2 Bedroom", location: "Wongamat Beach, Pattaya, Thailand", description: "Premium 2-bedroom beachfront condominium on Wongamat Beach with panoramic sea views and resort-style facilities.", image: "https://images.unsplash.com/photo-1582268611958-ebfd161ef9cf?w=400", thbPrice: 20000000, targetAmount: 666667 },
-  { id: 2, name: "Grand Florida 1 Bedroom", location: "Na Jomtien, Pattaya, Thailand", description: "Modern 1-bedroom resort-style condominium with sea views, private beach access, and world-class amenities.", image: "https://images.unsplash.com/photo-1571003123894-1f0594d2b5d9?w=400", thbPrice: 6000000, targetAmount: 200000 },
-  { id: 3, name: "Andromeda Pratumnak", location: "Pratumnak Hill, Pattaya, Thailand", description: "Luxury condominium on prestigious Pratumnak Hill with stunning sea views and premium lifestyle amenities.", image: "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=400", thbPrice: 12000000, targetAmount: 400000 },
+  { id: 1, name: "The Palm Wongamat 2 Bedroom", location: "Wongamat Beach, Pattaya, Thailand", description: "Premium 2-bedroom beachfront condominium on Wongamat Beach with panoramic sea views and resort-style facilities.", image: "https://images.unsplash.com/photo-1582268611958-ebfd161ef9cf?w=400", thbPrice: 600000, targetAmount: 20000 },
+  { id: 2, name: "Grand Florida 1 Bedroom", location: "Na Jomtien, Pattaya, Thailand", description: "Modern 1-bedroom resort-style condominium with sea views, private beach access, and world-class amenities.", image: "https://images.unsplash.com/photo-1571003123894-1f0594d2b5d9?w=400", thbPrice: 600000, targetAmount: 20000 },
+  { id: 3, name: "Andromeda Pratumnak", location: "Pratumnak Hill, Pattaya, Thailand", description: "Luxury condominium on prestigious Pratumnak Hill with stunning sea views and premium lifestyle amenities.", image: "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=400", thbPrice: 600000, targetAmount: 20000 },
 ];
-const STORAGE_KEY = "coast_properties_v4";
+const STORAGE_KEY = "coast_properties_v5";
 
 export function getProperties() {
   if (typeof window === "undefined") return SEED;
