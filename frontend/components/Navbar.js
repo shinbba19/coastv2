@@ -8,6 +8,7 @@ export default function Navbar() {
   const links = [
     { href: "/", label: "Marketplace" },
     { href: "/portfolio", label: "Portfolio" },
+    { href: "/dividends", label: "Dividends" },
     { href: "/faucet", label: "Faucet" },
     { href: "/admin", label: "Admin" },
   ];
