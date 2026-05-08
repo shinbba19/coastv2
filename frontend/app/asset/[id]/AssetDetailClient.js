@@ -141,6 +141,18 @@ export default function AssetDetailClient({ id }) {
     }
   }
 
+  async function addToMetaMask() {
+    if (!window.ethereum || !PROPERTY_TOKEN_ADDRESS) return;
+    try {
+      await window.ethereum.request({
+        method: "wallet_watchAsset",
+        params: { type: "ERC1155", options: { address: PROPERTY_TOKEN_ADDRESS, tokenId: String(assetId) } },
+      });
+    } catch (err) {
+      console.error("wallet_watchAsset failed:", err);
+    }
+  }
+
   async function handleClaimDividend() {
     setDivMsg("Claiming dividend...");
     try {
@@ -335,13 +347,21 @@ export default function AssetDetailClient({ id }) {
                 </div>
                 {address && purchased > 0n && (
                   <div className="bg-blue-50 rounded-lg p-3 col-span-2">
-                    <p className="text-gray-400">Your Tokens</p>
-                    <p className="font-semibold text-blue-700">
-                      {Number(purchased).toLocaleString()} tokens
-                      <span className="text-gray-400 font-normal ml-2">
-                        ({(Number(purchased) * tokenPrice).toLocaleString()} mUSDT paid)
-                      </span>
-                    </p>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-gray-400">Your Tokens</p>
+                        <p className="font-semibold text-blue-700">
+                          {Number(purchased).toLocaleString()} tokens
+                          <span className="text-gray-400 font-normal ml-2">
+                            ({(Number(purchased) * tokenPrice).toLocaleString()} mUSDT paid)
+                          </span>
+                        </p>
+                      </div>
+                      <button onClick={addToMetaMask}
+                        className="text-xs text-orange-500 hover:text-orange-700 transition flex items-center gap-1 flex-shrink-0">
+                        <span>🦊</span> Add to MetaMask
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>
@@ -401,6 +421,12 @@ export default function AssetDetailClient({ id }) {
               </button>
               {txMsg && (
                 <p className={`text-sm text-center ${txMsg.startsWith("Error") ? "text-red-500" : "text-green-600"}`}>{txMsg}</p>
+              )}
+              {txMsg === "Purchase successful!" && (
+                <button onClick={addToMetaMask}
+                  className="w-full border border-orange-200 bg-orange-50 hover:bg-orange-100 text-orange-600 py-2 rounded-xl text-sm font-medium transition flex items-center justify-center gap-2">
+                  <span>🦊</span> Add token to MetaMask
+                </button>
               )}
             </div>
           ) : investorsFull && purchased === 0n && !saleApproved ? (

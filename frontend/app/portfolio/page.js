@@ -148,6 +148,18 @@ export default function PortfolioPage() {
     } finally { setLoading(false); }
   }
 
+  async function addToMetaMask(assetId) {
+    if (!window.ethereum || !PROPERTY_TOKEN_ADDRESS) return;
+    try {
+      await window.ethereum.request({
+        method: "wallet_watchAsset",
+        params: { type: "ERC1155", options: { address: PROPERTY_TOKEN_ADDRESS, tokenId: String(assetId) } },
+      });
+    } catch (err) {
+      console.error("wallet_watchAsset failed:", err);
+    }
+  }
+
   async function handlePropose(assetId) {
     const price = proposePrice[assetId];
     if (!price || parseFloat(price) <= 0) {
@@ -277,6 +289,12 @@ export default function PortfolioPage() {
                     <div>
                       <p className="text-gray-400">Tokens in Wallet</p>
                       <p className="font-semibold">{heldBalance.toLocaleString()}</p>
+                      {heldBalance > 0 && (
+                        <button onClick={() => addToMetaMask(asset.id)}
+                          className="mt-1 text-xs text-orange-500 hover:text-orange-700 transition flex items-center gap-1">
+                          <span>🦊</span> Add to MetaMask
+                        </button>
+                      )}
                     </div>
                   </div>
 
